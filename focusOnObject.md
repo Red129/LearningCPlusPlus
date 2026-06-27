@@ -78,7 +78,23 @@ public:
     string name;
     void set_name(string name) {
         // 这里的两个name，编译器怎么区分是参数还是对象的成员？
-        name = name;  // 实际是把参数赋值给参数，对象的name没变化
+
+
+        /*
+        编译器怎么区分？
+
+        编译器查找变量遵循“就近原则”（局部优先）：
+
+        查找顺序大概是：
+
+        当前作用域（函数内部的局部变量/参数）
+        外层作用域
+        类成员
+        全局作用域
+        */
+        name = name;  // 实际是把参数赋值给参数，对象的name没变化,
+        // 这个参数 name 会遮蔽（shadow） 类里的成员 name。
+        //啥都没干
     }
 };
 
@@ -102,6 +118,7 @@ void set_name(string name) {
 
 - ## protected
   - 有可知道，也有不能知道的
+  - 理解：家族可访问，家族外不行
   
 - ## 封装
 - ## 继承
@@ -112,7 +129,7 @@ void set_name(string name) {
 ## 引用
   - &
   - 语法：int &b = a;定义了一个b，引用，他和a指向同一个内存位置，相当于a的一个别名
-  - 常量引用：在参数列表中(const x & s)可以防止s被改变，突破可以用mutable
+  - 常量引用：在参数列表中(const x类型 & s)可以防止s被改变，突破可以用mutable
   - 特点：不是拷贝，直接改变变量，不能为null必须有真实值
 ## 类的
 
@@ -152,7 +169,7 @@ void set_name(string name) {
     缺省值
     构造函数公有
     不想让你看定义，缺省默认值放在声明里
-    cin.getlin(c,80,/n)
+    cin.getline(c, 80, '\n');
   - 条件：类中没有定义任何构造函数时，编译器会自动生成一个无参构造函数。
 
   - 作用：用于对象的默认初始化。
@@ -301,6 +318,14 @@ void set_name(string name) {
       ```
     - 未写的话自动调用默认的，离开作用域时，注意动态的不行，必须delete
   - ### 拷贝构造函数
+    - ```cpp
+          // 拷贝构造函数（自己写）
+        Complex(const Complex& other) {
+            real = other.real;
+            imag = other.imag;
+            cout << "调用拷贝构造函数" << endl;
+        }
+      ```
   - ### 重载函数
   ## 返回值与临时对象
   ```cpp
@@ -326,7 +351,26 @@ void set_name(string name) {
   - 生命周期：临时对象在表达式结束时销毁
   - 不能被修改：临时对象通常是右值，只能绑定到 const 引用，用const A&来接住
 # 模板
+```cpp
 template <class T>
+template<typename T>
+T Max(T a, T b) {
+    return a > b ? a : b;
+}
+//调用
+cout << Max(3,5);        // T=int
+cout << Max(3.2,1.8);    // T=double
+cout << Max('a','z');    // T=char
+//编译器自动生成：
+
+int Max(int,int)
+double Max(double,double)
+char Max(char,char)
+
+//这个过程叫：
+
+//模板实例化（instantiation）
+```
 
 # 函数重载
   ## 前置自增后置自增
@@ -342,6 +386,15 @@ template <class T>
   }
   ```
   return *this
+  ## 后置自增重载
+  ```cpp
+        Counter operator++(int) {
+            Counter temp = *this; // 保存原值
+            num++;                // 自己加1
+            return temp;          // 返回旧值
+        }
+  ```
+
   ## 输入输出流的重载
     stream
   ### 输出流cout<<
@@ -451,8 +504,13 @@ is a
 
         Derived d;
         d.a;  // ❌ 不行，a 已经变成 protected
+        //Base成员	到Derived后
+        //public	protected
+        //protected	protected
+        //private	不可访问
 
      ```
+     
  - 私有继承
    - 父类的 public 和 protected 都变成子类的 private
    - 以后的子子代，都用不了，自此截断，不可派生了
@@ -503,6 +561,29 @@ is a
       派生类里定义的成员对象（包括基类类型的成员）会在基类构造完成后依次构造。
 
       顺序按照成员在类中 ***声明*** 的顺序，而不是初始化列表里的书写顺序。
+
+      ```cpp
+      class Derived : public Base {
+        private:
+            A a;
+            B b;
+
+        public:
+            Derived() : b(), a() {
+                cout << "Derived构造\n";
+            }
+        };
+
+        你可能以为：
+
+        b先构造，再a
+
+        错。
+
+        实际还是：
+
+        Base → a → b → Derived
+      ```
 
  - #### 派生类自身构造
 
@@ -701,9 +782,21 @@ fout.close();   // 必须关闭
  - 构造函数：绝对不能声明为虚函数。因为构造函数调用时子类对象还未完成构造，虚函数表还没初始化，无法实现多态调用。
  - 如果基类没有默认构造函数（即只定义了带形参的构造函数），派生类必须在自己的构造函数初始化列表中调用基类的带参构造函数，因此派生类需要声明带形参的构造函数来传递参数，否则编译会报错。这个叙述正确。
 
+### 虚基类
+***虚基类***（Virtual Base Class）是 C++ 为了解决多继承中的“菱形继承”问题而引入的机制，它保证在复杂继承结构中某个基类只保留一份，从而避免数据冗余和二义性。
+ - ```cpp
+    class A { public: int x; };
+    class B : virtual public A { };
+    class C : virtual public A { };
+    class D : public B, public C { };
+
+   ```
+
 #### 虚析构函数
  - 通过 virtual 声明析构函数后，删除对象时会进行 动态绑定，确保派生类析构函数先执行，再执行基类析构函数。
+ - 基类的析构函数必须声明为虚析构函数（virtual ~Base()），否则通过基类指针删除派生类对象时只会调用基类析构，不会触发派生类析构。
  - A：错误，虚基类不强制要求定义虚析构函数，这不是语法强制规则。
+
  - B：普通析构函数在对象生命周期结束时就会释放资源，不是虚析构函数特有的作用。
  - C：正确，虚析构函数的核心作用就是在delete动态分配的派生类对象（通过基类指针操作）时，完整释放派生类资源。
  - D：明显错误，虚析构函数是 C++ 多态里非常关键的设计。
@@ -713,4 +806,4 @@ fout.close();   // 必须关闭
 #### 纯虚函数
  - 不存在函数体，只是有一个函数名，方便子类派生类调用
  - virtual 返回类型 函数名（参数列表） = 0；
- - 可加const
+ - 可加const , e.g.virtual void m() const = 0;
